@@ -1,0 +1,30 @@
+services:
+  target:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    container_name: jdi-poc-target
+    ports:
+      - "8080:8080"   # HTTP calculator
+      - "5005:5005"   # JDWP, exposed to host too for optional local debugging
+    networks:
+      - jdi-net
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: jdi-poc-agent
+    depends_on:
+      - target
+    environment:
+      - TARGET_HOST=target
+      - TARGET_PORT=5005
+    volumes:
+      - ./out:/app/out
+    networks:
+      - jdi-net
+
+networks:
+  jdi-net:
+    driver: bridge

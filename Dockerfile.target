@@ -1,0 +1,24 @@
+# --- build stage ---
+FROM eclipse-temurin:21-jdk AS build
+WORKDIR /src
+COPY target/ target/
+RUN mkdir -p out/target \
+    && javac -g -d out/target target/com/example/target/*.java
+
+# --- runtime stage ---
+# Note: a JRE is enough to RUN the target, since the target itself
+# never calls JDI. (The debug port is opened by the JVM's built-in
+# jdwp native agent, not by JDI/Java code.)
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /src/out/target /app/out/target
+
+# 8080 = HTTP calculator endpoint, 5005 = JDWP debug port the agent attaches to
+EXPOSE 8080 5005
+
+# address=*:5005 binds JDWP on all interfaces so the agent container
+# can attach from outside this container, not just from localhost.
+ENTRYPOINT ["java", \
+    "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", \
+    "-cp", "out/target", \
+    "com.example.target.CalculatorServer"]
